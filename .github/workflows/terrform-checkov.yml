@@ -21,6 +21,11 @@ jobs:
     permissions: # <-- Add this block
       contents: read
       id-token: write # <-- Essential for OIDC authentication
+    env:
+          TF_VAR_vault_addr: ${{ secrets.AWS_REGION }}
+          TF_VAR_vault_addr: ${{ secrets.VAULT_ADDR }}
+          TF_VAR_vaultroleid: ${{ secrets.VAULT_ROLE_ID }}
+          TF_VAR_vaultsecretid: ${{ secrets.VAULT_SECRET_ID }}      
     steps:
       - uses: actions/checkout@v4
 
@@ -45,20 +50,11 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
         working-directory: environments/dev/aws
-        env:
-          TF_VAR_vault_addr: ${{ secrets.AWS_REGION }}
-          TF_VAR_vault_addr: ${{ secrets.VAULT_ADDR }}
-          TF_VAR_vaultroleid: ${{ secrets.VAULT_ROLE_ID }}
-          TF_VAR_vaultsecretid: ${{ secrets.VAULT_SECRET_ID }}
+
 
       - name: Terraform Plan
         run: terraform plan -no-color
         working-directory: environments/dev/aws
-        env:
-          TF_VAR_vault_addr: ${{ secrets.AWS_REGION }}
-          TF_VAR_vault_addr: ${{ secrets.VAULT_ADDR }}
-          TF_VAR_vaultroleid: ${{ secrets.VAULT_ROLE_ID }}
-          TF_VAR_vaultsecretid: ${{ secrets.VAULT_SECRET_ID }}
 
       - name: Install Checkov
         run: pip install checkov
@@ -73,6 +69,10 @@ jobs:
     permissions: # <-- Add this block
       contents: read
       id-token: write # <-- Essential for OIDC authentication
+    env:
+          TF_VAR_vault_addr: ${{ secrets.VAULT_ADDR }}
+          TF_VAR_vaultroleid: ${{ secrets.VAULT_ROLE_ID }}
+          TF_VAR_vaultsecretid: ${{ secrets.VAULT_SECRET_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -97,19 +97,13 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
         working-directory: environments/dev/azure
-        env:
-          TF_VAR_vault_addr: ${{ secrets.VAULT_ADDR }}
-          TF_VAR_vaultroleid: ${{ secrets.VAULT_ROLE_ID }}
-          TF_VAR_vaultsecretid: ${{ secrets.VAULT_SECRET_ID }}
+
           
 
       - name: Terraform Plan
         run: terraform plan -no-color
         working-directory: environments/dev/aws
-        env:
-          TF_VAR_vault_addr: ${{ secrets.VAULT_ADDR }}
-          TF_VAR_vaultroleid: ${{ secrets.VAULT_ROLE_ID }}
-          TF_VAR_vaultsecretid: ${{ secrets.VAULT_SECRET_ID }}
+
 
       - name: Install Checkov
         run: pip install checkov
