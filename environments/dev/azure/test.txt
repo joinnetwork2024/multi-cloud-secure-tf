@@ -1,0 +1,263 @@
+# CloudSec Scribe - AWS PCI-DSS Audit Script (PowerShell)
+# Generated: 2025-12-07T06:31:32.211Z
+# Compliance Standard: PCI-DSS
+# 
+# INSTRUCTIONS:
+# 1. Ensure AWS CLI is installed and configured (aws configure)
+# 2. Run this script: .\audit.ps1
+# 3. PASTE THE ENTIRE OUTPUT into CloudSec Scribe for analysis.
+#
+# This script is READ-ONLY and does not modify any resources.
+# Compatible with: PowerShell 5.1+, AWS SSO, IAM credentials
+
+$ErrorActionPreference = "Continue"
+$ProgressPreference = "SilentlyContinue"  # Suppress progress bars for cleaner output
+$AuditLog = @()
+$ScriptStart = Get-Date
+
+function Write-Status { param([string]$Message, [string]$Type = "INFO")
+    $prefix = switch($Type) { "OK" {"[OK]"} "WARN" {"[WARN]"} "ERROR" {"[ERROR]"} "STEP" {"---"} default {"[*]"} }
+    Write-Output "$prefix $Message"
+}
+
+function Add-Finding { param([string]$Section, [string]$Item, $Data, [string]$ErrorMsg = "")
+    $entry = @{ 
+        Timestamp = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+        Section = $Section
+        Item = $Item
+        Data = if ($Data) { $Data } else { @() }
+    }
+    if ($ErrorMsg) { $entry.Error = $ErrorMsg }
+    $script:AuditLog += $entry
+}
+
+function Invoke-AWSCommand { param([string]$Command, [string]$Section, [string]$Item)
+    try {
+        $rawOutput = Invoke-Expression "$Command 2>&1"
+        if ($LASTEXITCODE -ne 0 -or -not $rawOutput) {
+            Add-Finding -Section $Section -Item $Item -Data @() -ErrorMsg "Command returned no data or failed"
+            return $null
+        }
+        # Handle AWS SSO and other shells that may return strings
+        if ($rawOutput -is [string]) {
+            try { return $rawOutput | ConvertFrom-Json } catch { return $rawOutput }
+        }
+        return $rawOutput
+    } catch {
+        Add-Finding -Section $Section -Item $Item -Data @() -ErrorMsg "Error: Could not execute - $_"
+        return $null
+    }
+}
+
+Write-Output "========================================"
+Write-Output " CloudSec Scribe - AWS PCI-DSS Audit"
+Write-Output " Started: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+Write-Output "========================================"
+Write-Output ""
+
+# ============================================
+# PRE-FLIGHT: Verify AWS Authentication
+# ============================================
+Write-Status "Checking AWS authentication..." -Type "INFO"
+$identity = Invoke-AWSCommand -Command "aws sts get-caller-identity --output json" -Section "Pre-Flight" -Item "AWS Identity"
+if (-not $identity) {
+    Write-Output ""
+    Write-Output "========================================"
+    Write-Output "ERROR: Not logged in to AWS!"
+    Write-Output "Run 'aws configure' or 'aws sso login' first."
+    Write-Output "========================================"
+    exit 1
+}
+Write-Status "Logged in as: $($identity.Arn)" -Type "OK"
+Add-Finding -Section "Pre-Flight" -Item "AWS Identity" -Data $identity
+Write-Output ""
+
+# ============================================
+# STEP 1: CloudTrail & Logging
+# ============================================
+Write-Status "Step 1: CloudTrail & Logging" -Type "STEP"
+
+Write-Status "Checking CloudTrail trails..." -Type "INFO"
+$trails = Invoke-AWSCommand -Command "aws cloudtrail describe-trails --output json" -Section "Logging" -Item "CloudTrail Trails"
+if ($trails -and $trails.trailList) {
+    $trailCount = $trails.trailList.Count
+    $multiRegion = ($trails.trailList | Where-Object { $_.IsMultiRegionTrail -eq $true }).Count
+    Write-Status "Found $trailCount trail(s), $multiRegion multi-region" -Type $(if($multiRegion -gt 0){"OK"}else{"WARN"})
+    Add-Finding -Section "Logging" -Item "CloudTrail Trails" -Data $trails.trailList
+} else {
+    Write-Status "No CloudTrail trails found - CRITICAL!" -Type "ERROR"
+}
+
+Write-Status "Checking GuardDuty detectors..." -Type "INFO"
+$guardduty = Invoke-AWSCommand -Command "aws guardduty list-detectors --output json" -Section "Logging" -Item "GuardDuty Detectors"
+if ($guardduty -and $guardduty.DetectorIds -and $guardduty.DetectorIds.Count -gt 0) {
+    Write-Status "GuardDuty enabled with $($guardduty.DetectorIds.Count) detector(s)" -Type "OK"
+    Add-Finding -Section "Logging" -Item "GuardDuty Detectors" -Data $guardduty.DetectorIds
+} else {
+    Write-Status "GuardDuty not enabled" -Type "WARN"
+    Add-Finding -Section "Logging" -Item "GuardDuty Detectors" -Data @() -ErrorMsg "No detectors found"
+}
+Write-Output ""
+
+# ============================================
+# STEP 2: IAM & Access Control
+# ============================================
+Write-Status "Step 2: IAM & Access Control" -Type "STEP"
+
+Write-Status "Checking IAM password policy..." -Type "INFO"
+$pwPolicy = Invoke-AWSCommand -Command "aws iam get-account-password-policy --output json" -Section "IAM" -Item "Password Policy"
+if ($pwPolicy -and $pwPolicy.PasswordPolicy) {
+    Write-Status "Password policy configured" -Type "OK"
+    Add-Finding -Section "IAM" -Item "Password Policy" -Data $pwPolicy.PasswordPolicy
+} else {
+    Write-Status "No password policy configured!" -Type "WARN"
+}
+
+Write-Status "Checking MFA on root account..." -Type "INFO"
+$accountSummary = Invoke-AWSCommand -Command "aws iam get-account-summary --output json" -Section "IAM" -Item "Account Summary"
+if ($accountSummary -and $accountSummary.SummaryMap) {
+    $rootMFA = $accountSummary.SummaryMap.AccountMFAEnabled
+    Add-Finding -Section "IAM" -Item "Root MFA Status" -Data @{ RootMFAEnabled = $rootMFA }
+    Write-Status "Root MFA: $(if($rootMFA -eq 1){'Enabled'}else{'DISABLED - CRITICAL!'})" -Type $(if($rootMFA -eq 1){"OK"}else{"ERROR"})
+}
+
+Write-Status "Listing IAM users without MFA..." -Type "INFO"
+$users = Invoke-AWSCommand -Command "aws iam list-users --output json" -Section "IAM" -Item "Users"
+if ($users -and $users.Users) {
+    $usersWithoutMFA = @()
+    foreach ($user in $users.Users) {
+        $mfaDevices = Invoke-AWSCommand -Command "aws iam list-mfa-devices --user-name $($user.UserName) --output json" -Section "IAM" -Item "MFA Check"
+        if (-not $mfaDevices -or -not $mfaDevices.MFADevices -or $mfaDevices.MFADevices.Count -eq 0) {
+            $usersWithoutMFA += $user.UserName
+        }
+    }
+    Add-Finding -Section "IAM" -Item "Users Without MFA" -Data $usersWithoutMFA
+    Write-Status "Users without MFA: $($usersWithoutMFA.Count)" -Type $(if($usersWithoutMFA.Count -gt 0){"WARN"}else{"OK"})
+}
+Write-Output ""
+
+# ============================================
+# STEP 3: Network Exposure
+# ============================================
+Write-Status "Step 3: Network Exposure" -Type "STEP"
+
+Write-Status "Checking public EC2 instances..." -Type "INFO"
+$ec2 = Invoke-AWSCommand -Command 'aws ec2 describe-instances --query "Reservations[*].Instances[*].{ID:InstanceId,PublicIP:PublicIpAddress,State:State.Name,Name:Tags[?Key==``Name``]|[0].Value}" --output json' -Section "Network" -Item "EC2 Instances"
+if ($ec2) {
+    $flatEc2 = $ec2 | ForEach-Object { $_ } | Where-Object { $_.PublicIP }
+    $publicCount = if ($flatEc2) { @($flatEc2).Count } else { 0 }
+    Add-Finding -Section "Network" -Item "Public EC2 Instances" -Data $flatEc2
+    Write-Status "Public EC2 instances: $publicCount" -Type $(if($publicCount -gt 0){"WARN"}else{"OK"})
+}
+
+Write-Status "Checking security groups for open access..." -Type "INFO"
+$sgs = Invoke-AWSCommand -Command 'aws ec2 describe-security-groups --query "SecurityGroups[*].{ID:GroupId,Name:GroupName,Ingress:IpPermissions}" --output json' -Section "Network" -Item "Security Groups"
+if ($sgs) {
+    $openSGs = $sgs | Where-Object { 
+        $_.Ingress | Where-Object { $_.IpRanges.CidrIp -contains "0.0.0.0/0" }
+    }
+    Add-Finding -Section "Network" -Item "Security Groups" -Data $sgs
+    Add-Finding -Section "Network" -Item "Open Security Groups (0.0.0.0/0)" -Data $openSGs
+    Write-Status "Security groups with 0.0.0.0/0: $(@($openSGs).Count)" -Type $(if(@($openSGs).Count -gt 0){"WARN"}else{"OK"})
+}
+
+Write-Status "Checking RDS public accessibility & encryption..." -Type "INFO"
+$rds = Invoke-AWSCommand -Command 'aws rds describe-db-instances --query "DBInstances[*].{ID:DBInstanceIdentifier,Public:PubliclyAccessible,Encrypted:StorageEncrypted,Engine:Engine}" --output json' -Section "Network" -Item "RDS Instances"
+if ($rds) {
+    $publicRDS = $rds | Where-Object { $_.Public -eq $true }
+    $unencryptedRDS = $rds | Where-Object { $_.Encrypted -eq $false }
+    Add-Finding -Section "Network" -Item "RDS Instances" -Data $rds
+    Write-Status "RDS: $(@($rds).Count) total, $(@($publicRDS).Count) public, $(@($unencryptedRDS).Count) unencrypted" -Type $(if(@($publicRDS).Count -gt 0 -or @($unencryptedRDS).Count -gt 0){"WARN"}else{"OK"})
+}
+Write-Output ""
+
+# ============================================
+# STEP 4: S3 Bucket Security
+# ============================================
+Write-Status "Step 4: S3 Bucket Security" -Type "STEP"
+
+Write-Status "Listing all S3 buckets..." -Type "INFO"
+$buckets = Invoke-AWSCommand -Command "aws s3api list-buckets --query 'Buckets[*].Name' --output json" -Section "S3" -Item "Bucket List"
+if ($buckets -and $buckets.Count -gt 0) {
+    Write-Status "Found $($buckets.Count) bucket(s). Scanning each..." -Type "INFO"
+    $s3Results = @()
+    
+    foreach ($bucket in $buckets) {
+        $bucketResult = @{ Bucket = $bucket; Encryption = $null; PublicAccess = $null; Versioning = $null; Logging = $null; MFADelete = $null }
+        
+        # Check encryption
+        $enc = Invoke-AWSCommand -Command "aws s3api get-bucket-encryption --bucket $bucket --output json" -Section "S3" -Item "$bucket-encryption"
+        $bucketResult.Encryption = if ($enc) { "Enabled" } else { "Disabled" }
+        
+        # Check public access block
+        $pub = Invoke-AWSCommand -Command "aws s3api get-public-access-block --bucket $bucket --output json" -Section "S3" -Item "$bucket-public"
+        $bucketResult.PublicAccess = if ($pub -and $pub.PublicAccessBlockConfiguration) { $pub.PublicAccessBlockConfiguration } else { "Not Configured" }
+        
+        # Check versioning (for MFA Delete)
+        $ver = Invoke-AWSCommand -Command "aws s3api get-bucket-versioning --bucket $bucket --output json" -Section "S3" -Item "$bucket-versioning"
+        $bucketResult.Versioning = if ($ver -and $ver.Status) { $ver.Status } else { "Disabled" }
+        $bucketResult.MFADelete = if ($ver -and $ver.MFADelete) { $ver.MFADelete } else { "Disabled" }
+        
+        # Check logging
+        $log = Invoke-AWSCommand -Command "aws s3api get-bucket-logging --bucket $bucket --output json" -Section "S3" -Item "$bucket-logging"
+        $bucketResult.Logging = if ($log -and $log.LoggingEnabled) { "Enabled" } else { "Disabled" }
+        
+        $s3Results += $bucketResult
+        Write-Status "  $bucket - Enc:$($bucketResult.Encryption) Log:$($bucketResult.Logging) MFADel:$($bucketResult.MFADelete)" -Type "INFO"
+    }
+    Add-Finding -Section "S3" -Item "Bucket Security Details" -Data $s3Results
+    
+    $unencrypted = ($s3Results | Where-Object { $_.Encryption -eq "Disabled" }).Count
+    $noLogging = ($s3Results | Where-Object { $_.Logging -eq "Disabled" }).Count
+    Write-Status "S3 Summary: $unencrypted unencrypted, $noLogging without logging" -Type $(if($unencrypted -gt 0 -or $noLogging -gt 0){"WARN"}else{"OK"})
+} else {
+    Write-Status "No S3 buckets found" -Type "INFO"
+    Add-Finding -Section "S3" -Item "Bucket Security Details" -Data @()
+}
+Write-Output ""
+
+# ============================================
+# STEP 5: Encryption & KMS
+# ============================================
+Write-Status "Step 5: Encryption & KMS" -Type "STEP"
+
+Write-Status "Checking ALL EBS volumes (encrypted + unencrypted)..." -Type "INFO"
+$ebs = Invoke-AWSCommand -Command 'aws ec2 describe-volumes --query "Volumes[*].{ID:VolumeId,Encrypted:Encrypted,Size:Size,State:State,KmsKeyId:KmsKeyId}" --output json' -Section "Encryption" -Item "EBS Volumes"
+if ($ebs) {
+    $encrypted = ($ebs | Where-Object { $_.Encrypted -eq $true }).Count
+    $unencrypted = ($ebs | Where-Object { $_.Encrypted -eq $false }).Count
+    Add-Finding -Section "Encryption" -Item "EBS Volumes" -Data $ebs
+    Write-Status "EBS: $($ebs.Count) total, $encrypted encrypted, $unencrypted unencrypted" -Type $(if($unencrypted -gt 0){"WARN"}else{"OK"})
+}
+
+Write-Status "Checking KMS key rotation..." -Type "INFO"
+$keys = Invoke-AWSCommand -Command 'aws kms list-keys --query "Keys[*].KeyId" --output json' -Section "Encryption" -Item "KMS Keys"
+if ($keys -and $keys.Count -gt 0) {
+    $kmsResults = @()
+    foreach ($keyId in $keys) {
+        $rotation = Invoke-AWSCommand -Command "aws kms get-key-rotation-status --key-id $keyId --output json" -Section "Encryption" -Item "KMS-$keyId"
+        $kmsResults += @{ KeyId = $keyId; RotationEnabled = if($rotation -and $rotation.KeyRotationEnabled) { $true } else { $false } }
+    }
+    Add-Finding -Section "Encryption" -Item "KMS Key Rotation" -Data $kmsResults
+    $rotationDisabled = ($kmsResults | Where-Object { $_.RotationEnabled -eq $false }).Count
+    Write-Status "KMS: $($keys.Count) keys, $rotationDisabled without rotation" -Type $(if($rotationDisabled -gt 0){"WARN"}else{"OK"})
+}
+Write-Output ""
+
+# ============================================
+# FINAL OUTPUT
+# ============================================
+$ScriptEnd = Get-Date
+$Duration = $ScriptEnd - $ScriptStart
+
+Write-Output "========================================"
+Write-Output " Audit Complete!"
+Write-Output " Duration: $($Duration.TotalSeconds.ToString('F1')) seconds"
+Write-Output " Findings: $($AuditLog.Count) items collected"
+Write-Output "========================================"
+Write-Output ""
+Write-Output "BEGIN_CLOUDAUDIT_DATA"
+$AuditLog | ConvertTo-Json -Depth 50 -Compress:$false
+Write-Output "END_CLOUDAUDIT_DATA"
+Write-Output ""
+Write-Output "Copy everything between BEGIN/END tags into CloudSec Scribe"
