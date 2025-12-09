@@ -6,7 +6,7 @@ on:
   push:
     branches: ["main"]
   pull_request:
-    branches: ["mainr"]
+    branches: ["main"]
 
 jobs:
   terraform-security:
@@ -45,5 +45,5 @@ jobs:
         continue-on-error: true
 
       - name: Run Checkov Scan
-        run: checkov -d .
+        run: checkov -d . --compact
         continue-on-error: true
