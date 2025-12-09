@@ -1,4 +1,4 @@
-name: Terraform Security & Validation Pipeline
+name: Terraform Security & Validation Pipeline - azure
 permissions:
   contents: read
 
