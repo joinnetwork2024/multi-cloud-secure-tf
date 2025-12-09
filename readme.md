@@ -1,19 +1,15 @@
-That's a great starting point for your README.md! Since you've updated the AWS and Azure Terraform, the README needs to clearly reflect the multi-cloud aspect and the specific setup/usage for each cloud, especially concerning security features.Here is an enhanced and structured README.md based on best practices for a multi-cloud secure IaC project.
 
 🛡️ sec-iac: Secure Multi-Cloud Infrastructure as CodeThis repository provides secure, reusable Infrastructure-as-Code (IaC) configurations for AWS and Azure, managed by Terraform and validated by a Checkov-enabled CI/CD pipeline (GitHub Actions). The primary goal is to deploy standardized, secure infrastructure resources across multiple cloud environments.
 
 ✨ Key FeaturesMulti-Cloud Support: Configurations for deploying core networking and compute resources on AWS and Azure.Security Scanning: Automated security and compliance checks using Checkov to enforce policies before deployment.Modular Design: Infrastructure components (e.g., networking, compute) are built into reusable Terraform modules.GitHub Actions CI/CD: A pipeline for terraform fmt, terraform validate, and Checkov scanning on every change.Secure Defaults: Enforces security best practices like encryption, restricted network access, and least-privilege principles by default.
 
 📂 Repository StructureThe code is organized by cloud provider for clear separation of concerns..
-├── .github/workflows/
-│   └── ci.yml           # GitHub Actions workflow for plan, validate, and checkov scan
-├── modules/
-│   ├── aws-vpc/         # Modular AWS networking (VPC, Subnets, Gateways)
-│   └── azure-vnet/      # Modular Azure networking (VNet, Subnets, NSGs)
-├── aws/                 # Root configuration for AWS deployment
-│   └── main.tf
-└── azure/               # Root configuration for Azure deployment
-    └── main.tf
+├───.github
+│   └───workflows       # GitHub Actions workflow for plan, validate, and checkov scan
+└───environments
+    └───dev
+        ├───aws         # Root configuration for AWS deployment
+        └───azure       # Root configuration for Azure deployment
 
 ### 🚀 Getting Started
 
