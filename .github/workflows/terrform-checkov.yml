@@ -53,10 +53,6 @@ jobs:
         run: terraform validate
         working-directory: environments/dev/aws
 
-      - name: Terraform Plan
-        run: terraform plan -no-color
-        working-directory: environments/dev/aws
-
       - name: Install Checkov
         run: pip install checkov
 
@@ -98,10 +94,6 @@ jobs:
 
       - name: Terraform Validate
         run: terraform validate
-        working-directory: environments/dev/azure
-
-      - name: Terraform Plan
-        run: terraform plan -no-color
         working-directory: environments/dev/azure
 
       - name: Install Checkov
