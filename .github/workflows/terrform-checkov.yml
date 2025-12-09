@@ -18,6 +18,9 @@ jobs:
   terraform-aws:
     name: Terraform & Checkov Scan - AWS Dev
     runs-on: ubuntu-latest
+    permissions: # <-- Add this block
+      contents: read
+      id-token: write # <-- Essential for OIDC authentication
     steps:
       - uses: actions/checkout@v4
 
@@ -53,6 +56,9 @@ jobs:
   terraform-azure:
     name: Terraform & Checkov Scan - Azure Dev
     runs-on: ubuntu-latest
+    permissions: # <-- Add this block
+      contents: read
+      id-token: write # <-- Essential for OIDC authentication
     steps:
       - uses: actions/checkout@v4
 
