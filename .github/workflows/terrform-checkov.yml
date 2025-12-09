@@ -1,4 +1,5 @@
 name: Terraform Security & Validation Pipeline
+
 permissions:
   contents: read
 
@@ -18,14 +19,13 @@ jobs:
   terraform-aws:
     name: Terraform & Checkov Scan - AWS Dev
     runs-on: ubuntu-latest
-    permissions: # <-- Add this block
+    permissions:
       contents: read
-      id-token: write # <-- Essential for OIDC authentication
+      id-token: write
     env:
-          TF_VAR_vault_addr: ${{ secrets.AWS_REGION }}
-          TF_VAR_vault_addr: ${{ secrets.VAULT_ADDR }}
-          TF_VAR_vaultroleid: ${{ secrets.VAULT_ROLE_ID }}
-          TF_VAR_vaultsecretid: ${{ secrets.VAULT_SECRET_ID }}      
+      TF_VAR_vault_addr: ${{ secrets.VAULT_ADDR }}
+      TF_VAR_vaultroleid: ${{ secrets.VAULT_ROLE_ID }}
+      TF_VAR_vaultsecretid: ${{ secrets.VAULT_SECRET_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -51,7 +51,6 @@ jobs:
         run: terraform validate
         working-directory: environments/dev/aws
 
-
       - name: Terraform Plan
         run: terraform plan -no-color
         working-directory: environments/dev/aws
@@ -59,20 +58,20 @@ jobs:
       - name: Install Checkov
         run: pip install checkov
 
-      - name: Run Checkov
+      - name: Run Checkov Scan
         run: checkov -d environments/dev/aws --download-external-modules true
         continue-on-error: true
 
   terraform-azure:
     name: Terraform & Checkov Scan - Azure Dev
     runs-on: ubuntu-latest
-    permissions: # <-- Add this block
+    permissions:
       contents: read
-      id-token: write # <-- Essential for OIDC authentication
+      id-token: write
     env:
-          TF_VAR_vault_addr: ${{ secrets.VAULT_ADDR }}
-          TF_VAR_vaultroleid: ${{ secrets.VAULT_ROLE_ID }}
-          TF_VAR_vaultsecretid: ${{ secrets.VAULT_SECRET_ID }}
+      TF_VAR_vault_addr: ${{ secrets.VAULT_ADDR }}
+      TF_VAR_vaultroleid: ${{ secrets.VAULT_ROLE_ID }}
+      TF_VAR_vaultsecretid: ${{ secrets.VAULT_SECRET_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -98,16 +97,13 @@ jobs:
         run: terraform validate
         working-directory: environments/dev/azure
 
-          
-
       - name: Terraform Plan
         run: terraform plan -no-color
-        working-directory: environments/dev/aws
-
+        working-directory: environments/dev/azure
 
       - name: Install Checkov
         run: pip install checkov
 
-      - name: Run Checkov
+      - name: Run Checkov Scan
         run: checkov -d environments/dev/azure --download-external-modules true
         continue-on-error: true
