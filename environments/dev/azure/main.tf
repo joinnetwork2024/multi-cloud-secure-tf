@@ -28,8 +28,8 @@ resource "azurerm_storage_account" "secure" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
 
-  public_network_access_enabled     = true
-  infrastructure_encryption_enabled = false
+  public_network_access_enabled     = false
+  infrastructure_encryption_enabled = true
 
   min_tls_version = "TLS1_2"
 
