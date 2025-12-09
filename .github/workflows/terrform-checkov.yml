@@ -26,6 +26,7 @@ jobs:
       TF_VAR_vault_addr: ${{ secrets.VAULT_ADDR }}
       TF_VAR_vaultroleid: ${{ secrets.VAULT_ROLE_ID }}
       TF_VAR_vaultsecretid: ${{ secrets.VAULT_SECRET_ID }}
+      TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
     steps:
       - uses: actions/checkout@v4
 
