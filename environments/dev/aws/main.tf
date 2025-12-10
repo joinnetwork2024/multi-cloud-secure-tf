@@ -7,15 +7,15 @@ provider "aws" {
 # Add a data resource to get the current account ID for the KMS policy
 data "aws_caller_identity" "current" {}
 
+resource "aws_sns_topic" "bucket_notifications" {
+  name = "bucket-notifications"
+}
 
 # ==============================================================================
-# 1. PREREQUISITES: LOGS, KMS KEY, SQS QUEUE (FIXED CKV_AWS_109, 111, 356)
+# 1. PREREQUISITES: LOGS, KMS KEY, SQS QUEUE 
 # ==============================================================================
 
 # B. Create a KMS Key for encryption 
-# FIX: The following policy is a required *default* policy. 
-# CKV_AWS_356/109/111 FAIL: Due to 'Resource = "*"' and 'kms:*' without Condition.
-# FIX: Adding a Condition to restrict access to a specific account's ARN, which is a strong constraint.
 data "aws_iam_policy_document" "kms_key_policy" {
   statement {
     sid    = "Enable IAM User Permissions"
@@ -35,6 +35,7 @@ data "aws_iam_policy_document" "kms_key_policy" {
   }
 }
 
+
 resource "aws_kms_key" "s3_kms_key" {
   description             = "KMS key for S3 bucket encryption and SQS"
   deletion_window_in_days = 10
@@ -51,7 +52,7 @@ resource "aws_sqs_queue" "s3_notifications" {
 
 
 # ==============================================================================
-# 2. LOG BUCKET CONFIGURATION (FIXED CKV_AWS_300 and CKV_AWS_18)
+# 2. LOG BUCKET CONFIGURATION 
 # ==============================================================================
 
 # A. Create a dedicated S3 bucket for access logs
@@ -69,31 +70,17 @@ resource "aws_s3_bucket_lifecycle_configuration" "log_bucket_lifecycle" {
     expiration {
       days = 90
     }
-    # <-- FIX: Add this block for CKV_AWS_300
+   
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
     }
   }
 }
 
-# CKV_AWS_18 FAIL: Ensure the S3 bucket has access logging enabled
-# NOTE: The log bucket itself does not need logging enabled, but to pass the scanner, 
-# sometimes a minimal configuration is required, or it simply failed because the 
-# resource block for the main bucket was edited. The fix is often to ensure logging 
-# is configured on the target. We will leave the logging block out of the log bucket
-# itself to prevent loops, but ensure all other security is applied.
-
-# ... [Versioning, SSE, Notifications, Replication, and PAB blocks for log_bucket remain the same]
-
 
 # ==============================================================================
-# 3. SECURE BUCKET CONFIGURATION (Addressing CKV_AWS_144, 145, 21, 62, and CKV2_AWS_6)
+# 3. SECURE BUCKET CONFIGURATION 
 # ==============================================================================
-
-# FIX: To satisfy all S3 checks (CKV2_AWS_6, CKV_AWS_144, 145, 21, 62) which were previously passing 
-# but are now failing on the base resource block, we ensure the base resource is 
-# properly structured with its logging configuration. All other requirements are 
-# attached as separate resources.
 
 resource "aws_s3_bucket" "secure_bucket" {
   bucket = "${var.project_name}-dev-s3-bucket"
@@ -107,9 +94,7 @@ resource "aws_s3_bucket" "secure_bucket" {
   # Ensure the base bucket configuration is clean.
 }
 
-# CKV2_AWS_6 FIX: Ensure that S3 bucket has a Public Access block
-# This resource was present but may have been created after the scanner ran.
-# We ensure the dependent resources use 'depends_on' to enforce order.
+
 resource "aws_s3_bucket_public_access_block" "secure_bucket_pab" {
   bucket                  = aws_s3_bucket.secure_bucket.id
   block_public_acls       = true
@@ -118,4 +103,114 @@ resource "aws_s3_bucket_public_access_block" "secure_bucket_pab" {
   restrict_public_buckets = true
 }
 
-# ... [The separate resources for versioning, lifecycle, SSE, notification, and replication for secure_bucket remain the same]
+resource "aws_s3_bucket_notification" "bucket_notification" {
+  bucket = aws_s3_bucket.secure_bucket.id
+
+  topic {
+    topic_arn     = aws_sns_topic.bucket_notifications.arn
+    events        = ["s3:ObjectCreated:*"]
+    filter_prefix = "logs/"
+  }
+}
+
+
+# ==============================================================================
+# 4. AWS NETWORKING: MODULAR VPC 
+# ==============================================================================
+
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0"
+
+  name = "${var.project_name}-vpc"
+  cidr = var.vpc_cidr
+  
+  # Configure for 2 Availability Zones
+  azs             = slice(data.aws_availability_zones.available.names, 0, 2) 
+  private_subnets = [for i in range(2) : cidrsubnet(var.vpc_cidr, 8, i)] # Example CIDR range calculation
+  public_subnets  = [for i in range(2) : cidrsubnet(var.vpc_cidr, 8, i + 2)] # Example CIDR range calculation
+
+  enable_nat_gateway     = true
+  single_nat_gateway     = true
+  enable_dns_hostnames   = true
+  enable_dns_support     = true
+
+  tags = {
+    "Name"      = "${var.project_name}-vpc"
+    "Component" = "SecureVM"
+  }
+}
+
+# Look up available AZs for the module configuration
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+# --- 4.A. Security Group for Restricted Network Access ---
+# Restricting Ingress: Only SSH (port 22) from a trusted IP (replace with your actual IP)
+# Restricting Egress: Standard allowance for outbound traffic (0.0.0.0/0)
+
+resource "aws_security_group" "ec2_sg" {
+  name        = "${var.project_name}-ec2-sg"
+  description = "Restrictive Security Group for EC2"
+  vpc_id      = data.aws_vpc.default.id
+
+  # Ingress: Allow SSH from a known/trusted IP range only
+  ingress {
+    description = "Allow SSH from trusted IP"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    # **CRITICAL**: Replace 'X.X.X.X/32' with your public IP address
+    cidr_blocks = ["192.168.1.1/32"] 
+  }
+
+  # Egress: Allow all outbound traffic (can be further restricted if needed)
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.project_name}-ec2-sg"
+  }
+}
+
+# --- 4.B. Secure EC2 Instance Provisioning ---
+
+# Find the latest Amazon Linux 2 AMI
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm*-x86_64-gp2"]
+  }
+}
+
+resource "aws_instance" "secure_ec2" {
+  ami           = data.aws_ami.amazon_linux.id
+  instance_type = "t3.micro"
+  
+  # Assign the restrictive security group
+  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+  # Select a public subnet
+  subnet_id              = tolist(data.aws_subnet_ids.public.ids)[0] 
+  associate_public_ip_address = true # Enable if accessing via public IP
+
+  # **CRITICAL**: Encrypted Volumes
+  root_block_device {
+    volume_size           = 8
+    encrypted             = true
+    # Use the KMS key defined in your prerequisites section
+    kms_key_id            = aws_kms_key.s3_kms_key.arn 
+    delete_on_termination = true
+  }
+
+  tags = {
+    Name = "${var.project_name}-SecureEC2"
+  }
+}
