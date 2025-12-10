@@ -70,7 +70,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "log_bucket_lifecycle" {
     expiration {
       days = 90
     }
-   
+
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
     }
@@ -124,16 +124,16 @@ module "vpc" {
 
   name = "${var.project_name}-vpc"
   cidr = var.vpc_cidr
-  
+
   # Configure for 2 Availability Zones
-  azs             = slice(data.aws_availability_zones.available.names, 0, 2) 
-  private_subnets = [for i in range(2) : cidrsubnet(var.vpc_cidr, 8, i)] # Example CIDR range calculation
+  azs             = slice(data.aws_availability_zones.available.names, 0, 2)
+  private_subnets = [for i in range(2) : cidrsubnet(var.vpc_cidr, 8, i)]     # Example CIDR range calculation
   public_subnets  = [for i in range(2) : cidrsubnet(var.vpc_cidr, 8, i + 2)] # Example CIDR range calculation
 
-  enable_nat_gateway     = true
-  single_nat_gateway     = true
-  enable_dns_hostnames   = true
-  enable_dns_support     = true
+  enable_nat_gateway   = true
+  single_nat_gateway   = true
+  enable_dns_hostnames = true
+  enable_dns_support   = true
 
   tags = {
     "Name"      = "${var.project_name}-vpc"
@@ -153,7 +153,7 @@ data "aws_availability_zones" "available" {
 resource "aws_security_group" "ec2_sg" {
   name        = "${var.project_name}-ec2-sg"
   description = "Restrictive Security Group for EC2"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = module.vpc.vpc_id
 
   # Ingress: Allow SSH from a known/trusted IP range only
   ingress {
@@ -162,7 +162,7 @@ resource "aws_security_group" "ec2_sg" {
     to_port     = 22
     protocol    = "tcp"
     # **CRITICAL**: Replace 'X.X.X.X/32' with your public IP address
-    cidr_blocks = ["192.168.1.1/32"] 
+    cidr_blocks = ["192.168.1.1/32"]
   }
 
   # Egress: Allow all outbound traffic (can be further restricted if needed)
@@ -194,19 +194,19 @@ data "aws_ami" "amazon_linux" {
 resource "aws_instance" "secure_ec2" {
   ami           = data.aws_ami.amazon_linux.id
   instance_type = "t3.micro"
-  
+
   # Assign the restrictive security group
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
   # Select a public subnet
-  subnet_id              = tolist(data.aws_subnet_ids.public.ids)[0] 
+  subnet_id                   = module.vpc.private_subnets[0]
   associate_public_ip_address = true # Enable if accessing via public IP
 
   # **CRITICAL**: Encrypted Volumes
   root_block_device {
-    volume_size           = 8
-    encrypted             = true
+    volume_size = 8
+    encrypted   = true
     # Use the KMS key defined in your prerequisites section
-    kms_key_id            = aws_kms_key.s3_kms_key.arn 
+    kms_key_id            = aws_kms_key.s3_kms_key.arn
     delete_on_termination = true
   }
 

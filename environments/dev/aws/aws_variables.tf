@@ -17,3 +17,9 @@ variable "vault_addr" {
 variable "vaultroleid" {}
 
 variable "vaultsecretid" {}
+
+variable "vpc_cidr" {
+  description = "VPC CIDR"
+  type        = string
+  default     = "172.32.0.0/16"
+}
