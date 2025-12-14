@@ -43,6 +43,36 @@ resource "aws_iam_role" "ssm_remediation_role" {
   ]
 }
 
+# --- EC2 IAM Role Prerequisite ---
+resource "aws_iam_role" "ec2_s3_read_role" {
+  name = "${var.project_name}-EC2-S3-Read"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = "sts:AssumeRole",
+        Effect = "Allow",
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        },
+      },
+    ],
+  })
+}
+
+# Attach a policy (e.g., read-only access to S3)
+resource "aws_iam_role_policy_attachment" "ec2_s3_read_attach" {
+  role       = aws_iam_role.ec2_s3_read_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+}
+
+# Instance Profile wraps the Role for attachment to EC2
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "${var.project_name}-EC2-Profile"
+  role = aws_iam_role.ec2_s3_read_role.name
+}
+
 # 7.B. Systems Manager Automation Document (SSM Document)
 # This document will enforce the S3 Public Access Block for a given bucket ARN.
 resource "aws_ssm_document" "s3_public_access_remediation" {

@@ -22,20 +22,20 @@ data "azurerm_resource_group" "existing" {
 }
 
 resource "azurerm_storage_account" "secure" {
-  name                     = "secblobstorage01"
-  resource_group_name      = data.azurerm_resource_group.existing.name
-  location                 = data.azurerm_resource_group.existing.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
+  name                            = "secblobstorage01"
+  resource_group_name             = data.azurerm_resource_group.existing.name
+  location                        = data.azurerm_resource_group.existing.location
+  account_tier                    = "Standard"
+  account_replication_type        = "GRS"
+  allow_nested_items_to_be_public = false
+  public_network_access_enabled   = false
 
-  public_network_access_enabled     = false
-  
   network_rules {
-    default_action = "Deny"           # Deny all network traffic except explicitly allowed
+    default_action = "Deny" # Deny all network traffic except explicitly allowed
   }
 
   identity {
-    type = "SystemAssigned"           # Optional: enable managed identity
+    type = "SystemAssigned" # Optional: enable managed identity
   }
 
   infrastructure_encryption_enabled = true
@@ -59,13 +59,13 @@ resource "azurerm_storage_account" "secure" {
 
 # Virtual Network (example, replace with your VNet)
 data "azurerm_virtual_network" "existing_vnet" {
-  name                = "vnet-name"  # Replace with your VNet
+  name                = "vnet-name" # Replace with your VNet
   resource_group_name = data.azurerm_resource_group.existing.name
 }
 
 # Subnet for Private Endpoint
 data "azurerm_subnet" "pe_subnet" {
-  name                 = "subnet-pe"  # Replace with subnet for private endpoints
+  name                 = "subnet-pe" # Replace with subnet for private endpoints
   virtual_network_name = data.azurerm_virtual_network.existing_vnet.name
   resource_group_name  = data.azurerm_resource_group.existing.name
 }
@@ -81,7 +81,7 @@ resource "azurerm_private_endpoint" "storage_pe" {
     name                           = "storage-psc"
     private_connection_resource_id = azurerm_storage_account.secure.id
     is_manual_connection           = false
-    subresource_names              = ["blob"]  # Could also include "file" if needed
+    subresource_names              = ["blob"] # Could also include "file" if needed
   }
 }
 

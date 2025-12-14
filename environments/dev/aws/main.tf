@@ -119,8 +119,9 @@ resource "aws_s3_bucket_notification" "bucket_notification" {
 # ==============================================================================
 
 module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.0"
+  # source  = "terraform-aws-modules/vpc/aws"
+  source  = "git::https://github.com/terraform-aws-modules/terraform-aws-vpc.git?ref=v5.0.0"
+  # version = "~> 5.0"
 
   name = "${var.project_name}-vpc"
   cidr = var.vpc_cidr
@@ -192,9 +193,9 @@ data "aws_ami" "amazon_linux" {
 }
 
 resource "aws_instance" "secure_ec2" {
-  ami           = data.aws_ami.amazon_linux.id
-  instance_type = "t3.micro"
-
+  ami                  = data.aws_ami.amazon_linux.id
+  instance_type        = "t3.micro"
+  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
   # Assign the restrictive security group
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
   # Select a public subnet
@@ -208,6 +209,12 @@ resource "aws_instance" "secure_ec2" {
     # Use the KMS key defined in your prerequisites section
     kms_key_id            = aws_kms_key.s3_kms_key.arn
     delete_on_termination = true
+  }
+
+  metadata_options {
+    http_endpoint = "enabled"
+    # Require a token, disabling IMDSv1
+    http_tokens = "required"
   }
 
   tags = {
