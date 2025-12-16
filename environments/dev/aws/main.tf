@@ -59,6 +59,7 @@ resource "aws_sqs_queue" "s3_notifications" {
 resource "aws_s3_bucket" "log_bucket" {
   bucket        = "${var.project_name}-s3-access-logs"
   force_destroy = true
+  tags          = local.common_tags
 }
 
 # CKV_AWS_300 FAIL: Ensure S3 lifecycle configuration sets period for aborting failed uploads
@@ -90,7 +91,7 @@ resource "aws_s3_bucket" "secure_bucket" {
     target_bucket = aws_s3_bucket.log_bucket.id
     target_prefix = "log/"
   }
-
+  tags = local.common_tags
   # Ensure the base bucket configuration is clean.
 }
 
@@ -120,7 +121,7 @@ resource "aws_s3_bucket_notification" "bucket_notification" {
 
 module "vpc" {
   # source  = "terraform-aws-modules/vpc/aws"
-  source  = "git::https://github.com/terraform-aws-modules/terraform-aws-vpc.git?ref=v5.0.0"
+  source = "git::https://github.com/terraform-aws-modules/terraform-aws-vpc.git?ref=v5.0.0"
   # version = "~> 5.0"
 
   name = "${var.project_name}-vpc"
