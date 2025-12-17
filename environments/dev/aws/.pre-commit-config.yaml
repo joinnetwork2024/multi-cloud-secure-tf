@@ -12,19 +12,26 @@ repos:
 
 # --- STANDARD TERRAFORM HOOKS ---
 - repo: https://github.com/antonbabenko/pre-commit-terraform
-  rev: v1.104.0 # Use the latest stable release
+  rev: v1.104.0
   hooks:
     # 1. Formatting: Ensures code style consistency
     - id: terraform_fmt
-    
-    # 2. Validation: Checks configuration syntax and consistency (equivalent to 'terraform validate')
+      # <<< ADD THIS LINE TO LIMIT SCOPE >>>
+      files: ^environments/dev/aws/.*\.tf$
+      
+    # 2. Validation: Checks configuration syntax and consistency
     - id: terraform_validate
-    
+      # <<< ADD THIS LINE TO LIMIT SCOPE >>>
+      files: ^environments/dev/aws/.*\.tf$
+      
     # 3. Linting: Checks for best practices, warnings, and module inconsistencies
     - id: terraform_tflint
+      # <<< ADD THIS LINE TO LIMIT SCOPE >>>
+      files: ^environments/dev/aws/.*\.tf$
       args:
-        # Use a configuration file for rules, if desired
         - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl 
         
     # 4. Security Scanning: Scans Terraform code for common security misconfigurations
     - id: checkov
+      # <<< ADD THIS LINE TO LIMIT SCOPE >>>
+      files: ^environments/dev/aws/.*\.tf$
