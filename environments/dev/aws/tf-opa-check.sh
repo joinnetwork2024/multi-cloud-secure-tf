@@ -32,3 +32,4 @@ else
     echo "$VIOLATIONS" | jq .
     exit 1
 fi
+
