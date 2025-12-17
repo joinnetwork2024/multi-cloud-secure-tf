@@ -9,3 +9,22 @@ repos:
     files: ^environments/dev/aws/.*\.tf$
     pass_filenames: false
     always_run: true
+
+# --- STANDARD TERRAFORM HOOKS ---
+- repo: https://github.com/antonbabenko/pre-commit-terraform
+  rev: v1.104.0 # Use the latest stable release
+  hooks:
+    # 1. Formatting: Ensures code style consistency
+    - id: terraform_fmt
+    
+    # 2. Validation: Checks configuration syntax and consistency (equivalent to 'terraform validate')
+    - id: terraform_validate
+    
+    # 3. Linting: Checks for best practices, warnings, and module inconsistencies
+    - id: terraform_tflint
+      args:
+        # Use a configuration file for rules, if desired
+        - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl 
+        
+    # 4. Security Scanning: Scans Terraform code for common security misconfigurations
+    - id: checkov
