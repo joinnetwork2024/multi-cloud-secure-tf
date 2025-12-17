@@ -1,0 +1,38 @@
+repos:
+- repo: local
+  hooks:
+  # --- YOUR CUSTOM OPA HOOK (Python Runner) ---
+  - id: custom-opa-policy-check
+    name: Custom OPA Policy Check (Shift-Left)
+    entry: python -c 'import subprocess; import sys; sys.exit(subprocess.call(["bash", "./tf-opa-check.sh"]))'
+    language: system
+    files: ^environments/dev/aws/.*\.tf$
+    pass_filenames: false
+    always_run: true
+
+# --- STANDARD TERRAFORM HOOKS ---
+- repo: https://github.com/antonbabenko/pre-commit-terraform
+  rev: v1.104.0
+  hooks:
+    # 1. Formatting: Ensures code style consistency
+    - id: terraform_fmt
+      # <<< ADD THIS LINE TO LIMIT SCOPE >>>
+      files: ^environments/dev/aws/.*\.tf$
+      
+    # 2. Validation: Checks configuration syntax and consistency
+    - id: terraform_validate
+      # <<< ADD THIS LINE TO LIMIT SCOPE >>>
+      files: ^environments/dev/aws/.*\.tf$
+      
+    # 3. Linting: Checks for best practices, warnings, and module inconsistencies
+    - id: terraform_tflint
+      files: ^environments/dev/aws/.*\.tf$
+      args:
+        - --args=--config=.tflint.hcl
+        
+    # 4. Security Scanning
+    - id: terraform_checkov
+      files: ^environments/dev/(aws|azure)/.*\.tf$
+      args:
+        - --args=--quiet
+        - --args=--framework=terraform

@@ -1,0 +1,11 @@
+repos:
+- repo: local
+  hooks:
+  # --- YOUR CUSTOM OPA HOOK (Python Runner) ---
+  - id: custom-opa-policy-check
+    name: Custom OPA Policy Check (Shift-Left)
+    entry: python opa_runner.py
+    language: python
+    files: ^environments/dev/aws/.*\.tf$
+    pass_filenames: false
+    always_run: true
