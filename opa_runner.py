@@ -65,6 +65,7 @@ def run_opa_check():
         print(f"Raw OPA Output: {violations_output}")
         return 1
 
+
     # 5. Determine Policy Status based on the list content
     if len(actual_violations) == 0:
             print(" OPA Policy Check PASSED. Infrastructure is compliant.")
