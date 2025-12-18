@@ -94,3 +94,41 @@ To avoid unexpected cloud costs, remember to destroy your resources when finishe
     cd azure
     terraform destroy -var="location=[LOCATION]"
     ```
+
+
+Adding Rego policies is a great step! It elevates your project from just "Infrastructure as Code" to "Policy as Code." This allows you to automatically audit your Terraform plans for security violations before they are ever deployed.
+
+Here is the updated section for your README.md that specifically documents the new Rego policy integration.
+
+🛡️ Policy as Code (OPA / Rego)
+This environment uses Open Policy Agent (OPA) to enforce security guardrails. The policies are written in Rego and are located in the policies/rego directory.
+
+✅ Key Policies Enforced
+Public Access Prevention: Ensures S3 buckets and security groups do not have "open to world" (0.0.0.0/0) configurations.
+
+Encryption Standards: Mandates that all EBS volumes and S3 buckets use AES256 or KMS encryption.
+
+Tagging Compliance: Requires mandatory tags (e.g., Environment, Owner) on all trackable resources.
+
+IAM Least Privilege: Scans for wildcard * permissions in IAM policies to prevent over-privileged roles.
+
+🔍 How to Run Policy Checks
+To validate your Terraform plan against these policies, follow these steps:
+
+Generate a Plan in JSON format:
+
+Bash
+
+terraform plan -out=tfplan
+terraform show -json tfplan > tfplan.json
+Evaluate using OPA:
+
+Bash
+
+# Run OPA evaluation against the rego directory
+opa eval --input tfplan.json --data policies/rego/ "data.terraform.policies.deny"
+Using Conftest (Optional but Recommended): If you have conftest installed, you can run a more streamlined check:
+
+Bash
+
+conftest test tfplan.json -p policies/rego/
