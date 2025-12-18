@@ -96,9 +96,6 @@ To avoid unexpected cloud costs, remember to destroy your resources when finishe
     ```
 
 
-Adding Rego policies is a great step! It elevates your project from just "Infrastructure as Code" to "Policy as Code." This allows you to automatically audit your Terraform plans for security violations before they are ever deployed.
-
-Here is the updated section for your README.md that specifically documents the new Rego policy integration.
 
 🛡️ Policy as Code (OPA / Rego)
 This environment uses Open Policy Agent (OPA) to enforce security guardrails. The policies are written in Rego and are located in the policies/rego directory.
