@@ -114,18 +114,21 @@ To validate your Terraform plan against these policies, follow these steps:
 
 Generate a Plan in JSON format:
 
-Bash
+'''
 
 terraform plan -out=tfplan
 terraform show -json tfplan > tfplan.json
+'''
+
 Evaluate using OPA:
 
-Bash
-
 # Run OPA evaluation against the rego directory
+'''
 opa eval --input tfplan.json --data policies/rego/ "data.terraform.policies.deny"
+'''
+
 Using Conftest (Optional but Recommended): If you have conftest installed, you can run a more streamlined check:
 
-Bash
-
+'''
 conftest test tfplan.json -p policies/rego/
+'''
