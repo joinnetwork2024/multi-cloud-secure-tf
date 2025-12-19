@@ -102,3 +102,13 @@ jobs:
       - name: Run Checkov Scan
         run: checkov -d environments/dev/azure --download-external-modules true
         continue-on-error: true
+
+      - name: Run Checkov Scan
+        run: |
+          checkov -d . --output json > checkov_results.json
+          
+      - name: Upload Checkov results as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: checkov-results
+          path: checkov_results.json
