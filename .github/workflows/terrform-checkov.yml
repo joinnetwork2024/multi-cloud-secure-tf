@@ -56,9 +56,21 @@ jobs:
       - name: Install Checkov
         run: pip install checkov
 
-      - name: Run Checkov Scan
+      - name: Run Checkov Scan (Console Output)
         run: checkov -d environments/dev/aws --download-external-modules true
         continue-on-error: true
+
+      - name: Export AWS JSON
+        if: always() 
+        run: |
+          checkov -d environments/dev/aws --output json --download-external-modules true > checkov_aws_results.json
+          
+      - name: Upload AWS Checkov results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-results-aws  
+          path: checkov_aws_results.json
 
   terraform-azure:
     name: Terraform & Checkov Scan - Azure Dev
@@ -99,16 +111,18 @@ jobs:
       - name: Install Checkov
         run: pip install checkov
 
-      - name: Run Checkov Scan
+      - name: Run Checkov Scan (Console Output)
         run: checkov -d environments/dev/azure --download-external-modules true
         continue-on-error: true
 
-      - name: Run Checkov Scan
+      - name: Export Azure JSON
+        if: always()
         run: |
-          checkov -d . --output json > checkov_results.json
+          checkov -d environments/dev/azure --output json --download-external-modules true > checkov_azure_results.json
           
-      - name: Upload Checkov results as artifact
+      - name: Upload Azure Checkov results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: checkov-results
-          path: checkov_results.json
+          name: checkov-results-azure 
+          path: checkov_azure_results.json
