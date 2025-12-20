@@ -78,7 +78,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "log_bucket_lifecycle" {
   }
 }
 
-
 # ==============================================================================
 # 3. SECURE BUCKET CONFIGURATION 
 # ==============================================================================
