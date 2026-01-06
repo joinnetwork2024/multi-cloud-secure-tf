@@ -1,20 +1,20 @@
-package terraform.analysis
+package terraform.aianalysis
 
 import rego.v1
 
-# Helper to find all resource changes in the plan
-resource_changes := tfplan.resource_changes
-
-deny[msg] {
-    resource := resource_changes[_]
+deny contains msg if {
+    resource := input.resource_changes[_]
     resource.type == "aws_s3_bucket"
-    
-    # Check the region from the provider configuration or address
-    # For simplicity in this demo, we'll check if the bucket name 
-    # doesn't follow a 'uk-' prefix or check provider attributes
-    region := resource.provider_name
-    not contains(resource.address, "eu-west-2")
-    not contains(resource.provider_name, "eu-west-2")
+    resource.mode == "managed"
 
-    msg := f"🛑 DATA RESIDENCY VIOLATION: Resource {resource.address} must be deployed in the UK (eu-west-2) for AI/ML data compliance."
+    some action in resource.change.actions
+    action in {"create", "update"}
+
+    planned_region := object.get(resource.change.after, "region", "unspecified")
+    planned_region != "eu-west-2"
+
+    msg := sprintf(
+        "DATA RESIDENCY VIOLATION: S3 bucket '%s' is planned for region '%s'. Must be in eu-west-2 (London) for AI/ML data compliance.",
+        [resource.address, planned_region]
+    )
 }

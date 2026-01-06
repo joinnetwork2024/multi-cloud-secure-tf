@@ -1,14 +1,10 @@
-# Define the AWS Provider and standard blocks...
-
-provider "aws" {
-  region = var.aws_region
-}
 
 # Add a data resource to get the current account ID for the KMS policy
 data "aws_caller_identity" "current" {}
 
 resource "aws_sns_topic" "bucket_notifications" {
-  name = "bucket-notifications"
+  name              = "bucket-notifications"
+  kms_master_key_id = aws_kms_key.s3_kms_key.id
 }
 
 # ==============================================================================
@@ -123,9 +119,12 @@ module "vpc" {
   source = "git::https://github.com/terraform-aws-modules/terraform-aws-vpc.git?ref=v5.0.0"
   # version = "~> 5.0"
 
-  name = "${var.project_name}-vpc"
-  cidr = var.vpc_cidr
-
+  name                                 = "${var.project_name}-vpc"
+  cidr                                 = var.vpc_cidr
+  enable_flow_log                      = true
+  create_flow_log_cloudwatch_log_group = true
+  create_flow_log_cloudwatch_iam_role  = true
+  flow_log_max_aggregation_interval    = 60
   # Configure for 2 Availability Zones
   azs             = slice(data.aws_availability_zones.available.names, 0, 2)
   private_subnets = [for i in range(2) : cidrsubnet(var.vpc_cidr, 8, i)]     # Example CIDR range calculation
@@ -201,6 +200,8 @@ resource "aws_instance" "secure_ec2" {
   # Select a public subnet
   subnet_id                   = module.vpc.private_subnets[0]
   associate_public_ip_address = true # Enable if accessing via public IP
+  monitoring                  = true # FIX CKV_AWS_126
+  ebs_optimized               = true # FIX CKV_AWS_135
 
   # **CRITICAL**: Encrypted Volumes
   root_block_device {

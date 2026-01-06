@@ -1,4 +1,4 @@
-package checkov.ec2.AWSEC2InstanceRootVolumeEncryption
+package terraform.analysis
 
 import rego.v1
 

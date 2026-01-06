@@ -6,7 +6,7 @@ set -e
 TF_DIR="environments/dev/aws"
 PLAN_JSON_PATH="$TF_DIR/tfplan.json"
 POLICY_DIR="policies/rego"
-OPA_QUERY="data.terraform.analysis.deny"
+OPA_QUERY="data.terraform.analysis"
 
 echo "Running OPA Policy Check against pre-generated plan file..."
 

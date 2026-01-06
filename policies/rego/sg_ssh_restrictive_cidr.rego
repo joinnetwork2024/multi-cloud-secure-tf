@@ -1,4 +1,4 @@
-package checkov.networking.AWSSecurityGroupSSHRestrictive
+package terraform.analysis
 
 import rego.v1
 

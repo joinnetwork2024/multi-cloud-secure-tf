@@ -3,7 +3,7 @@ package terraform.analysis
 import rego.v1
 
 # 1. Define the tags we want to enforce
-required_tags := {"Project", "Environment", "Teams"}
+required_tags := {"Name", "Environment", "DataType"}
 
 # 2. Deny rule for missing required tags on aws_s3_bucket resources
 deny contains msg if {

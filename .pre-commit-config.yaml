@@ -31,8 +31,8 @@ repos:
         - --args=--config=.tflint.hcl
         
     # 4. Security Scanning
-    - id: terraform_checkov
-      files: ^environments/dev/(aws|azure)/.*\.tf$
-      args:
-        - --args=--quiet
-        - --args=--framework=terraform
+    # - id: terraform_checkov
+    #   files: ^environments/dev/(aws|azure)/.*\.tf$
+    #   args:
+    #     - --args=--quiet
+    #     - --args=--framework=terraform

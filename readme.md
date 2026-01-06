@@ -151,3 +151,35 @@ By automating Terraform security scans and remediation actions in CI/CD:
 
 - **~150+ hours saved annually** in manual audit and remediation time across development teams (based on typical sprint velocity and scan cadence).
 
+## Project Evolution and Pivot
+This repository originally focused on providing secure, reusable Infrastructure-as-Code (IaC) configurations for general multi-cloud environments (AWS and Azure) using Terraform, with an emphasis on security scanning and compliance via tools like Checkov and Open Policy Agent (OPA). Over time, as AI and machine learning (AI/ML) workloads have become central to modern infrastructure, the project has intentionally pivoted to prioritize **AI/ML security governance**. This evolution ensures that deployments not only maintain core security principles but also incorporate guardrails specific to AI/ML, such as data residency enforcement, isolated endpoints for models (e.g., SageMaker or Azure ML), encryption for sensitive datasets, and least-privilege access for AI execution roles.
+
+This pivot builds on the foundational secure IaC patterns here, extending them to AI/ML-focused use cases. For the latest implementations with enhanced AI/ML governance, see our companion repository: [sec-iac](https://github.com/joinnetwork2024/sec-iac). Together, these repositories provide a seamless progression from general multi-cloud security to specialized AI/ML compliance, allowing users to navigate and build upon either based on their needs.
+
+The repository provides secure, reusable Infrastructure-as-Code (IaC) configurations for **AWS and Azure**, managed using **Terraform** and validated through a **Checkov-enabled CI/CD pipeline** (via GitHub Actions). Its primary goal is to deploy standardized, secure infrastructure resources across multiple cloud environments with a focus on security, compliance, and automation.
+
+### Key Features:
+- **Multi-Cloud Support**: Deploys core networking and compute resources on both AWS and Azure.
+- **Security Scanning**: Uses **Checkov** for automated security and compliance checks in CI/CD.
+- **Modular Design**: Infrastructure components (e.g., networking, compute) are built as reusable Terraform modules.
+- **GitHub Actions CI/CD**: Automates `terraform fmt`, `validate`, and Checkov scanning on every change.
+- **Secure Defaults**: Enforces encryption, restricted network access, and least-privilege principles by default.
+
+### Repository Structure:
+- Organized by cloud provider under `environments/dev/`:
+  - `aws/`: Root configuration for AWS deployment.
+  - `azure/`: Root configuration for Azure deployment.
+- Additional directories:
+  - `.github/workflows/`: GitHub Actions workflow for plan, validate, and Checkov scan.
+  - `policies/rego/`: Contains Rego policies for OPA (Open Policy Agent) enforcement.
+
+### Getting Started:
+Requires **Terraform (v1.0+)**, **AWS CLI**, and **Azure CLI** with proper credentials.
+
+#### AWS Deployment:
+```bash
+cd environments/dev/aws
+terraform init
+terraform plan -var="aws_region=[REGION]"
+terraform apply -var="aws_region=[REGION]"
+
