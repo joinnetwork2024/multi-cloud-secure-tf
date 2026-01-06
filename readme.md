@@ -1,185 +1,240 @@
+# 🛡️ sec-iac — AI-First Security Governance & Policy-as-Code
 
-🛡️ sec-iac: Secure Multi-Cloud Infrastructure as CodeThis repository provides secure, reusable Infrastructure-as-Code (IaC) configurations for AWS and Azure, managed by Terraform and validated by a Checkov-enabled CI/CD pipeline (GitHub Actions). The primary goal is to deploy standardized, secure infrastructure resources across multiple cloud environments.
-
-✨ Key FeaturesMulti-Cloud Support: Configurations for deploying core networking and compute resources on AWS and Azure.Security Scanning: Automated security and compliance checks using Checkov to enforce policies before deployment.Modular Design: Infrastructure components (e.g., networking, compute) are built into reusable Terraform modules.GitHub Actions CI/CD: A pipeline for terraform fmt, terraform validate, and Checkov scanning on every change.Secure Defaults: Enforces security best practices like encryption, restricted network access, and least-privilege principles by default.
-
-📂 Repository StructureThe code is organized by cloud provider for clear separation of concerns..
-├───.github
-│   └───workflows       # GitHub Actions workflow for plan, validate, and checkov scan
-└───environments
-    └───dev
-        ├───aws         # Root configuration for AWS deployment
-        └───azure       # Root configuration for Azure deployment
-
-### 🚀 Getting Started
-
-To deploy, you will need **Terraform** (v1.0+), **AWS CLI**, and **Azure CLI** installed and configured with appropriate credentials.
-
-#### **1. Prerequisites**
-
-* **Install Tools:** Terraform, AWS CLI, Azure CLI.
-* **Authenticate AWS:** Ensure your AWS CLI is configured (e.g., using `aws configure`).
-* **Authenticate Azure:** Log in using the Azure CLI:
-    ```sh
-    az login
-    ```
-
-#### **2. AWS Deployment**
-
-Navigate to the AWS directory for deployment.
-
-1.  Initialize Terraform:
-    ```sh
-    cd aws
-    terraform init
-    ```
-2.  Review the Plan:
-    ```sh
-    # Replace [REGION] with your target region (e.g., us-east-1)
-    terraform plan -var="region=[REGION]"
-    ```
-3.  Apply Changes:
-    ```sh
-    terraform apply -var="region=[REGION]"
-    ```
-    * **What is deployed?** *A secure VPC with private subnets, an EC2 instance in a private subnet, and tightly scoped Security Groups.* 
-
-#### **3. Azure Deployment**
-
-Navigate to the Azure directory for deployment.
-
-1.  Initialize Terraform:
-    ```sh
-    cd azure
-    terraform init
-    ```
-2.  Review the Plan:
-    ```sh
-    # Replace [LOCATION] with your target location (e.g., eastus)
-    terraform plan -var="location=[LOCATION]"
-    ```
-3.  Apply Changes:
-    ```sh
-    terraform apply -var="location=[LOCATION]"
-    ```
-    * **What is deployed?** *A Virtual Network (VNet) with segmented subnets, an Azure Virtual Machine, and Network Security Groups (NSGs) for firewall control.* 
+[![Security Scan: Checkov](https://img.shields.io/badge/security-checkov-brightgreen)](https://github.com/bridgecrewio/checkov)
+[![Policy Engine: OPA](https://img.shields.io/badge/policy-OPA%2FRego-blue)](https://www.openpolicyagent.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-### 🔒 Security & Compliance
+## 🚀 Overview
 
-The primary security mechanism is the **Checkov** scanning integration within the CI pipeline.
+**sec-iac** is an **AI-first security governance engine** built on Infrastructure-as-Code (IaC) and Policy-as-Code principles. It enforces security, compliance, and governance controls *before* cloud resources are deployed—specifically tailored for **AI/ML workloads** across AWS and Azure.
 
-| Security Control | Cloud Provider | Enforcement/Tool |
-| :--- | :--- | :--- |
-| **Network Isolation** | AWS/Azure | Uses private/internal subnets by default, minimal public IPs. |
-| **Secure Group Rules** | AWS/Azure | Security Groups/NSGs are restrictive, disallowing public SSH/RDP (port 22/3389). |
-| **Configuration Scan** | Multi-Cloud | **Checkov** runs on every PR to prevent insecure configurations from being merged. |
-| **Encryption** | AWS | Enforces **KMS** encryption for storage resources (e.g., S3, EBS). |
-| **Access Control** | AWS/Azure | Utilizes **IAM** roles and **RBAC** for least-privilege access. |
+Originally created as a secure multi-cloud landing zone, this repository has evolved to focus on **AI/ML security guardrails**, ensuring that model training, data handling, and execution environments comply with organizational and regulatory requirements from day one.
+
+> **Project Architecture**
+>
+> * **sec-iac** → *The Brain*: security policies, governance rules, and compliance logic
+> * **multi-cloud-secure-tf** → *The Body*: foundational infrastructure modules
+>
+> 👉 Use this repository together with [multi-cloud-secure-tf](https://github.com/joinnetwork2024/multi-cloud-secure-tf) for end-to-end secure deployments.
 
 ---
 
-### 🗑️ Cleanup
+## 🎯 What This Project Solves
 
-To avoid unexpected cloud costs, remember to destroy your resources when finished.
+AI/ML workloads introduce unique risks that traditional cloud security controls do not fully address. **sec-iac** enforces guardrails that prevent insecure or non-compliant AI infrastructure from ever being provisioned.
 
-* **AWS Cleanup:**
-    ```sh
-    cd aws
-    terraform destroy -var="region=[REGION]"
-    ```
-* **Azure Cleanup:**
-    ```sh
-    cd azure
-    terraform destroy -var="location=[LOCATION]"
-    ```
+This includes:
 
+* Preventing model training in disallowed regions
+* Enforcing isolation of inference endpoints
+* Restricting access to training data and model artifacts
+* Ensuring least-privilege execution roles for AI services
 
+---
 
-🛡️ Policy as Code (OPA / Rego)
-This environment uses Open Policy Agent (OPA) to enforce security guardrails. The policies are written in Rego and are located in the policies/rego directory.
+## ✨ Key Features
 
-✅ Key Policies Enforced
-Public Access Prevention: Ensures S3 buckets and security groups do not have "open to world" (0.0.0.0/0) configurations.
+### 🧠 AI/ML Security Governance
 
-Encryption Standards: Mandates that all EBS volumes and S3 buckets use AES256 or KMS encryption.
+* **Data Residency Enforcement**
+  OPA/Rego policies ensure sensitive training and inference data remains within approved geographic regions.
 
-Tagging Compliance: Requires mandatory tags (e.g., Environment, Owner) on all trackable resources.
+* **Model & Endpoint Isolation**
+  Network-level isolation for Amazon SageMaker and Azure ML endpoints to reduce data exfiltration risk.
 
-IAM Least Privilege: Scans for wildcard * permissions in IAM policies to prevent over-privileged roles.
+* **Least-Privilege AI Roles**
+  Fine-grained IAM (AWS) and RBAC (Azure) policies scoped specifically for AI execution, training, and model registry access.
 
-🔍 How to Run Policy Checks
-To validate your Terraform plan against these policies, follow these steps:
+### 🔐 Shift-Left Security
 
-Generate a Plan in JSON format:
+* **Pre-Deployment Enforcement** using:
 
- ```sh
-terraform plan -out=tfplan
-terraform show -json tfplan > tfplan.json
- ```
+  * Checkov
+  * Open Policy Agent (OPA/Rego)
+  * Terraform validation and linting
 
-Evaluate using OPA:
+* **CI/CD Guardrails**
+  Misconfigured or non-compliant infrastructure is blocked during pull requests—*before* reaching production.
 
-# Run OPA evaluation against the rego directory
- ```sh
-opa eval --input tfplan.json --data policies/rego/ "data.terraform.policies.deny"
- ```
+### 🧩 Modular & Cloud-Agnostic Design
 
-Using Conftest (Optional but Recommended): If you have conftest installed, you can run a more streamlined check:
+* Hardened Terraform modules optimized for:
 
- ```sh
-conftest test tfplan.json -p policies/rego/
- ```
+  * GPU-heavy workloads
+  * Private networking
+  * Encrypted storage and secrets
 
-## 🔒 Key Security Impacts
+---
 
-This project delivers measurable improvements in security posture and operational efficiency:
+## 📂 Repository Structure
 
-### ✅ 1. Reduced Infrastructure Misconfigurations  
-By integrating policy-as-code (OPA/Rego), along with tools such as Checkov and Terrascan in CI/CD pipelines, we achieve:
+The repository is organized by cloud provider with a centralized policy layer:
 
-- **>60% reduction in potential insecure infrastructure misconfigurations** compared to unmanaged IaC (measured by static scan results baseline).
+```text
+├── .github/workflows       # GitHub Actions: Plan, Validate, Checkov
+├── environments
+│   └── dev
+│       ├── aws             # Secure AWS AI infrastructure (SageMaker, VPC, EC2)
+│       └── azure           # Secure Azure AI infrastructure (Azure ML, VNet, VM)
+└── policies
+    └── rego                # Custom OPA/Rego policies for AI governance
+```
 
-### ✅ 2. Automated Detection & Prevention  
-Automated pre-deployment checks and rejection of insecure plans result in:
+---
 
-- **>90% reduction in insecure resources reaching cloud environments** due to shift-left enforcement.
+## 🔄 Project Evolution
 
-### ✅ 3. Time Savings Through Automation  
-By automating Terraform security scans and remediation actions in CI/CD:
+This repository began as a general-purpose **secure multi-cloud IaC framework** for AWS and Azure, emphasizing compliance scanning and standardized deployments.
 
-- **~150+ hours saved annually** in manual audit and remediation time across development teams (based on typical sprint velocity and scan cadence).
+As AI/ML workloads became central to modern platforms, the project pivoted to focus on **AI-specific security and governance**, extending the original IaC foundation with:
 
-## Project Evolution and Pivot
-This repository originally focused on providing secure, reusable Infrastructure-as-Code (IaC) configurations for general multi-cloud environments (AWS and Azure) using Terraform, with an emphasis on security scanning and compliance via tools like Checkov and Open Policy Agent (OPA). Over time, as AI and machine learning (AI/ML) workloads have become central to modern infrastructure, the project has intentionally pivoted to prioritize **AI/ML security governance**. This evolution ensures that deployments not only maintain core security principles but also incorporate guardrails specific to AI/ML, such as data residency enforcement, isolated endpoints for models (e.g., SageMaker or Azure ML), encryption for sensitive datasets, and least-privilege access for AI execution roles.
+* AI-aware compliance policies
+* Model and data isolation requirements
+* AI execution identity controls
 
-This pivot builds on the foundational secure IaC patterns here, extending them to AI/ML-focused use cases. For the latest implementations with enhanced AI/ML governance, see our companion repository: [sec-iac](https://github.com/joinnetwork2024/sec-iac). Together, these repositories provide a seamless progression from general multi-cloud security to specialized AI/ML compliance, allowing users to navigate and build upon either based on their needs.
+This evolution allows teams to adopt the repository at different maturity levels—from general cloud security to advanced AI governance.
 
-The repository provides secure, reusable Infrastructure-as-Code (IaC) configurations for **AWS and Azure**, managed using **Terraform** and validated through a **Checkov-enabled CI/CD pipeline** (via GitHub Actions). Its primary goal is to deploy standardized, secure infrastructure resources across multiple cloud environments with a focus on security, compliance, and automation.
+---
 
-### Key Features:
-- **Multi-Cloud Support**: Deploys core networking and compute resources on both AWS and Azure.
-- **Security Scanning**: Uses **Checkov** for automated security and compliance checks in CI/CD.
-- **Modular Design**: Infrastructure components (e.g., networking, compute) are built as reusable Terraform modules.
-- **GitHub Actions CI/CD**: Automates `terraform fmt`, `validate`, and Checkov scanning on every change.
-- **Secure Defaults**: Enforces encryption, restricted network access, and least-privilege principles by default.
+## 🚀 Getting Started
 
-### Repository Structure:
-- Organized by cloud provider under `environments/dev/`:
-  - `aws/`: Root configuration for AWS deployment.
-  - `azure/`: Root configuration for Azure deployment.
-- Additional directories:
-  - `.github/workflows/`: GitHub Actions workflow for plan, validate, and Checkov scan.
-  - `policies/rego/`: Contains Rego policies for OPA (Open Policy Agent) enforcement.
+### Prerequisites
 
-### Getting Started:
-Requires **Terraform (v1.0+)**, **AWS CLI**, and **Azure CLI** with proper credentials.
+* Terraform **v1.0+**
+* AWS CLI (configured credentials)
+* Azure CLI (configured credentials)
 
-#### AWS Deployment:
+### Example: AWS Deployment
+
 ```bash
 cd environments/dev/aws
 terraform init
-terraform plan -var="aws_region=[REGION]"
-terraform apply -var="aws_region=[REGION]"
+terraform plan -var="aws_region=<REGION>"
+terraform apply -var="aws_region=<REGION>"
+```
 
+Azure deployments follow the same pattern under `environments/dev/azure`.
+
+---
+
+
+
+# Documentation Update: Project Evolution & Navigation
+
+## Purpose
+
+This documentation update clarifies the **intentional evolution** of the `multi-cloud-secure-tf` and `sec-iac` repositories and provides clear guidance on how they work together. The goal is to make project navigation intuitive for readers discovering either repository or internal Notion documentation.
+
+---
+
+## 1️⃣ High-Level Architecture & Intent
+
+These two repositories are designed to work together but serve **distinct, deliberate roles**:
+
+| Repository                | Role                                          | Primary Focus                                  |
+| ------------------------- | --------------------------------------------- | ---------------------------------------------- |
+| **multi-cloud-secure-tf** | 🧱 *Infrastructure Foundation ("The Body")*   | Secure, reusable multi-cloud Terraform modules |
+| **sec-iac**               | 🧠 *Security Governance Engine ("The Brain")* | AI/ML security, compliance, and policy-as-code |
+
+This separation enables teams to adopt **secure infrastructure first**, then progressively enforce **advanced AI/ML governance** without refactoring core cloud foundations.
+
+---
+
+## 2️⃣ Project Evolution Narrative (Use in Notion & READMEs)
+
+### Original State: Secure Multi-Cloud IaC
+
+The project initially focused on providing **secure-by-default Infrastructure-as-Code** for AWS and Azure using Terraform. Core objectives included:
+
+* Standardized VPC/VNet and compute deployments
+* Encryption, network isolation, and least-privilege defaults
+* Automated security scanning with Checkov and CI/CD pipelines
+
+This foundation now lives primarily in **`multi-cloud-secure-tf`**.
+
+---
+
+### Intentional Pivot: AI/ML Security Governance
+
+As AI and machine learning workloads became central to modern platforms, traditional cloud security patterns proved insufficient. AI workloads introduce new risks such as:
+
+* Sensitive training data locality
+* Model exfiltration via public endpoints
+* Over-privileged execution roles
+* Lack of policy enforcement before provisioning
+
+To address these gaps, the project intentionally evolved toward **AI/ML-first security governance**, resulting in the creation and focus of **`sec-iac`**.
+
+This pivot was *not* a rewrite—but a **layered extension** of the original secure IaC foundation.
+
+---
+
+## 3️⃣ Repository Responsibilities (Clear Separation of Concerns)
+
+### 🧱 multi-cloud-secure-tf (Infrastructure Foundation)
+
+**Purpose**: Provide hardened, reusable Terraform modules for AWS and Azure.
+
+**Responsibilities**:
+
+* Core networking (VPCs, VNets, subnets)
+* Secure compute and base services
+* Encryption, logging, and baseline compliance
+* Cloud-agnostic structure for portability
+
+**What it does *not* focus on**:
+
+* AI/ML-specific compliance logic
+* Data residency enforcement
+* Model-level governance
+
+👉 Think of this repository as the **secure platform substrate**.
+
+---
+
+### 🧠 sec-iac (AI/ML Security Governance)
+
+**Purpose**: Enforce **policy-as-code guardrails** for AI/ML workloads *before* infrastructure is deployed.
+
+**Responsibilities**:
+
+* AI/ML data residency enforcement
+* Model training and inference isolation
+* Least-privilege IAM/RBAC for AI services
+* OPA/Rego policies and Checkov enforcement
+* Shift-left governance in CI/CD pipelines
+
+👉 Think of this repository as the **decision-making and compliance brain**.
+
+---
+
+## 4️⃣ How They Work Together (Recommended Flow)
+
+```text
+Developer PR
+   ↓
+Terraform Code (multi-cloud-secure-tf)
+   ↓
+Policy Enforcement (sec-iac)
+   ↓
+CI/CD Validation (Checkov + OPA)
+   ↓
+Approved Secure AI Infrastructure
+```
+
+
+## 📜 License
+
+This project is licensed under the **MIT License**.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome—especially new AI governance policies, security controls, and cloud integrations. Please submit pull requests with clear descriptions and supporting rationale.
+
+---
+
+**sec-iac** helps teams move fast with AI—*without compromising security or compliance.*
